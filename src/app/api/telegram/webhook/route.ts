@@ -197,8 +197,73 @@ export async function POST(req: NextRequest) {
       // Unrecognized message
       await sendReply(
         chatId,
-        `👋 Greetings Founder. Type:\n• <code>/status</code> for department summary\n• <code>/drop &lt;Name&gt;</code> to start a collection\n• <code>/pending</code> to review gates.`
+        `👋 Greetings Founder. Type:\n• <code>/status</code> for department summary\n• <code>/drop &lt;Name&gt;</code> to start a collection\n• <code>/pending</code> to review gates.\n• Or simply <b>send any artwork image</b> here to launch a new drop and push to Qikink POD!`
       );
+    }
+
+    // 3. Handle Photo / Design Artwork Uploads from Founder
+    if (update.message && (update.message.photo || (update.message.document && update.message.document.mime_type?.startsWith('image/')))) {
+      const msg = update.message;
+      const chatId = String(msg.chat?.id).trim();
+
+      // If founderId is set, verify Founder identity
+      if (founderId && chatId !== founderId) {
+        await sendReply(chatId, `⛔ <b>Access Restricted</b>\nOnly the Founder can upload designs.`);
+        return NextResponse.json({ ok: true });
+      }
+
+      const token = getBotToken();
+      let fileId = '';
+
+      if (msg.photo && msg.photo.length > 0) {
+        // Highest resolution photo is last in array
+        fileId = msg.photo[msg.photo.length - 1].file_id;
+      } else if (msg.document) {
+        fileId = msg.document.file_id;
+      }
+
+      if (!fileId) {
+        await sendReply(chatId, '⚠️ Could not read design file ID. Please retry.');
+        return NextResponse.json({ ok: true });
+      }
+
+      await sendReply(chatId, `🎨 <b>Artwork Received!</b> Processing high-resolution design file...`);
+
+      try {
+        // Resolve file path from Telegram
+        const fileRes = await fetch(`https://api.telegram.org/bot${token}/getFile?file_id=${fileId}`);
+        const fileData = await fileRes.json();
+
+        if (!fileData.ok || !fileData.result?.file_path) {
+          throw new Error('Failed to resolve photo path from Telegram servers.');
+        }
+
+        const designImageUrl = `https://api.telegram.org/file/bot${token}/${fileData.result.file_path}`;
+
+        // Caption can specify drop title (e.g. "Karna Streetwear")
+        const caption = msg.caption ? msg.caption.trim() : '';
+        const dropTitle = caption || `CWC Mythic Drop ${Date.now().toString(36).slice(-4).toUpperCase()}`;
+        const figure = caption.split(/[-:]/)[0]?.trim() || 'Mythic Legend';
+
+        // Mobilize drop with design image attached
+        const drop = await CWCCEOAgent.commissionDrop({
+          title: dropTitle,
+          theme: 'Indian Mythology Anime Streetwear',
+          mythologyFigure: figure,
+          conceptSummary: `Design uploaded directly via Telegram by Founder. Artwork URL: ${designImageUrl}`,
+          designImageUrl,
+        });
+
+        await sendReply(
+          chatId,
+          `🚀 <b>Design Processed & Drop Mobilized!</b>\n━━━━━━━━━━━━━━━━━━━━\n👕 <b>Collection:</b> ${drop.title}\n🖼️ <b>Artwork:</b> Saved to CWC Artifacts\n🌐 <b>Live on Dashboard:</b> Now visible on website\n⚡ <b>Next Step:</b> Tap <b>[✅ Approve]</b> above when ready to dispatch to Qikink POD!`
+        );
+      } catch (err: any) {
+        console.error('Error processing design image:', err);
+        await sendReply(chatId, `⚠️ <b>Error processing design:</b> ${err.message}`);
+      }
+
+      return NextResponse.json({ ok: true });
     }
 
     return NextResponse.json({ ok: true });

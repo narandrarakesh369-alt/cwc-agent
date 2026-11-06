@@ -11,6 +11,7 @@ export interface Drop {
   mythology_figure: string;
   status: DropStatus;
   concept_summary?: string;
+  design_image_url?: string;
   qr_code_slug?: string;
   created_at: string;
   updated_at: string;

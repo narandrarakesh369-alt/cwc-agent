@@ -9,12 +9,14 @@ export async function GET() {
     const { data: drops } = await supabaseAdmin.from('drops').select('*').order('created_at', { ascending: false });
     const { data: tasks } = await supabaseAdmin.from('tasks').select('*').order('created_at', { ascending: false }).limit(20);
     const { data: approvals } = await supabaseAdmin.from('approvals').select('*').order('created_at', { ascending: false });
+    const { data: artifacts } = await supabaseAdmin.from('artifacts').select('*').order('created_at', { ascending: false }).limit(20);
     const { data: logs } = await supabaseAdmin.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(25);
 
     return NextResponse.json({
       drops: drops || [],
       tasks: tasks || [],
       approvals: approvals || [],
+      artifacts: artifacts || [],
       logs: logs || [],
     });
   } catch (error: any) {

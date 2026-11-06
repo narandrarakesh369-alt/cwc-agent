@@ -25,6 +25,7 @@ export default function FounderDashboard() {
   const [drops, setDrops] = useState<any[]>([]);
   const [tasks, setTasks] = useState<any[]>([]);
   const [approvals, setApprovals] = useState<any[]>([]);
+  const [artifacts, setArtifacts] = useState<any[]>([]);
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [commissionOpen, setCommissionOpen] = useState(false);
@@ -43,6 +44,7 @@ export default function FounderDashboard() {
         setDrops(data.drops || []);
         setTasks(data.tasks || []);
         setApprovals(data.approvals || []);
+        setArtifacts(data.artifacts || []);
         setLogs(data.logs || []);
       }
     } catch (err) {
@@ -317,21 +319,66 @@ export default function FounderDashboard() {
           </div>
 
           <div className="space-y-3">
-            {drops.length === 0 ? (
-              <p className="text-xs text-neutral-500 font-mono py-4">No collections commissioned yet. Use "Commission Drop" above.</p>
-            ) : (
-              drops.map((drop) => (
-                <div key={drop.id} className="bg-[#12141c] border border-[#1c202d] p-3.5 rounded flex items-center justify-between">
-                  <div>
-                    <h4 className="text-sm font-bold text-white">{drop.title}</h4>
-                    <p className="text-xs text-neutral-400">Figure: <span className="text-[#e5b869]">{drop.mythology_figure}</span></p>
-                    <span className="text-[10px] font-mono text-[#00f0ff] mt-0.5 block">QR: cwc.io/{drop.qr_code_slug}</span>
-                  </div>
-                  <span className="text-[11px] font-mono px-2 py-1 rounded bg-[#1d2230] text-neutral-300 uppercase">
-                    {drop.status}
-                  </span>
+            {/* Telegram Photo Pipeline Helper */}
+            <div className="bg-[#121622] border border-[#232b3d] p-3 rounded-lg mb-3 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded bg-[#ff4655]/15 flex items-center justify-center text-[#ff4655]">
+                  <Sparkles className="w-4 h-4" />
                 </div>
-              ))
+                <div>
+                  <h4 className="text-xs font-bold text-white">Telegram Artwork Pipeline Active</h4>
+                  <p className="text-[11px] text-neutral-400">Send any design image directly to <b>@Cwcagent_bot</b> on Telegram to auto-launch a drop and dispatch to Qikink POD!</p>
+                </div>
+              </div>
+            </div>
+
+            {drops.length === 0 ? (
+              <p className="text-xs text-neutral-500 font-mono py-4">No collections commissioned yet. Drop an artwork image in Telegram or use "Commission Drop" above.</p>
+            ) : (
+              drops.map((drop) => {
+                const art = artifacts.find((a) => a.drop_id === drop.id && a.storage_url);
+                const qikinkTask = tasks.find((t) => t.drop_id === drop.id && t.department_id === 'garment_production');
+                const isDispatched = qikinkTask?.status === 'completed';
+
+                return (
+                  <div key={drop.id} className="bg-[#12141c] border border-[#1c202d] hover:border-[#2d3448] p-3.5 rounded-lg flex items-center justify-between gap-3 transition">
+                    <div className="flex items-center gap-3">
+                      {art?.storage_url ? (
+                        <img
+                          src={art.storage_url}
+                          alt={drop.title}
+                          className="w-14 h-14 rounded-md object-cover border border-[#283042] shadow"
+                        />
+                      ) : (
+                        <div className="w-14 h-14 rounded-md bg-[#181c26] border border-[#222838] flex items-center justify-center text-neutral-500">
+                          <Shirt className="w-6 h-6" />
+                        </div>
+                      )}
+
+                      <div>
+                        <h4 className="text-sm font-bold text-white">{drop.title}</h4>
+                        <p className="text-xs text-neutral-400">Figure: <span className="text-[#e5b869] font-medium">{drop.mythology_figure}</span></p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-[10px] font-mono text-[#00f0ff] block">cwc.io/{drop.qr_code_slug}</span>
+                          {isDispatched ? (
+                            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30">
+                              ✓ Qikink POD Dispatched
+                            </span>
+                          ) : (
+                            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300 font-bold border border-amber-500/20">
+                              Qikink: Ready
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <span className="text-[11px] font-mono px-2 py-1 rounded bg-[#1d2230] text-neutral-300 uppercase shrink-0">
+                      {drop.status}
+                    </span>
+                  </div>
+                );
+              })
             )}
           </div>
         </div>

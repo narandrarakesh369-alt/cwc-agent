@@ -8,6 +8,7 @@ export interface DropDirective {
   theme: string;
   mythologyFigure: string;
   conceptSummary: string;
+  designImageUrl?: string;
 }
 
 export class CWCCEOAgent {
@@ -120,11 +121,73 @@ export class CWCCEOAgent {
       });
     }
 
-    // 5. Notify Founder on Telegram
+    // 5. If Founder provided a design image, record the artwork artifact and trigger Qikink POD Gatekeeper
+    if (directive.designImageUrl) {
+      await supabaseAdmin.from('artifacts').insert({
+        drop_id: drop.id,
+        department_id: 'art_studio',
+        name: `${drop.title} — Front Print Artwork`,
+        artifact_type: 'art_concept',
+        storage_url: directive.designImageUrl,
+        metadata: { source: 'telegram_founder_upload' },
+      });
+
+      // Create dedicated Qikink POD manufacturing task
+      const { data: podTask } = await supabaseAdmin
+        .from('tasks')
+        .insert({
+          drop_id: drop.id,
+          department_id: 'garment_production',
+          title: `Qikink POD Print Sample: ${drop.title}`,
+          description: `Submit design image to Qikink for 280 GSM Oversized Streetwear sample print.`,
+          status: 'pending',
+          priority: 'critical',
+          input_payload: {
+            designImageUrl: directive.designImageUrl,
+            sku: 'CWC-TS-OVSZ-280GSM-BLK-L',
+          },
+        })
+        .select()
+        .single();
+
+      if (podTask) {
+        // Enforce the Founder Approval Gate before sending to Qikink!
+        await this.requestDepartmentAction({
+          taskId: podTask.id,
+          departmentId: 'garment_production',
+          actionType: 'place_quickink_order',
+          summary: `Dispatch "${drop.title}" artwork to Qikink POD for 280 GSM Oversized Tee sample`,
+          payload: {
+            orderNumber: `CWC${Date.now().toString(36).slice(-6).toUpperCase()}`,
+            paymentType: 'Prepaid',
+            shippingAddress: {
+              firstName: 'CWC Studio / Founder Sample',
+              address1: 'CWC Design Studio',
+              city: 'Bengaluru',
+              state: 'Karnataka',
+              pincode: '560001',
+              phone: '9999999999',
+            },
+            items: [
+              {
+                sku: 'CWC-TS-OVSZ-280GSM-BLK-L',
+                quantity: 1,
+                printType: 'DTG',
+                frontPrintUrl: directive.designImageUrl,
+              },
+            ],
+          },
+        });
+      }
+    }
+
+    // 6. Notify Founder on Telegram
     await sendDropMilestone({
       dropTitle: drop.title,
-      milestone: 'DEPARTMENTS MOBILIZED',
-      details: `10 specialized AI departments have been commissioned to develop the "${drop.title}" collection.`,
+      milestone: directive.designImageUrl ? 'DESIGN UPLOADED & DEPARTMENTS MOBILIZED' : 'DEPARTMENTS MOBILIZED',
+      details: directive.designImageUrl
+        ? `Design image captured! 10 departments mobilized and Qikink POD sample is queued for your authorization.`
+        : `10 specialized AI departments have been commissioned to develop the "${drop.title}" collection.`,
     });
 
     return drop;
