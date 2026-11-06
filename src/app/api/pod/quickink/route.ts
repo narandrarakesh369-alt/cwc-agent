@@ -3,6 +3,8 @@ import { quickink } from '@/lib/pod/quickink';
 import { CWCCEOAgent } from '@/lib/agents/ceo';
 import { supabaseAdmin } from '@/lib/supabase/server';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const orderNumber = searchParams.get('orderNumber');

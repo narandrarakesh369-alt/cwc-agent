@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { CWCCEOAgent } from '@/lib/agents/ceo';
 import { supabaseAdmin } from '@/lib/supabase/server';
 
+export const dynamic = 'force-dynamic';
+
 const FOUNDER_CHAT_ID = process.env.TELEGRAM_FOUNDER_CHAT_ID || '';
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '';
 const API_BASE = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}`;

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { CWCCEOAgent, DropDirective } from '@/lib/agents/ceo';
 import { supabaseAdmin } from '@/lib/supabase/server';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     const { data: drops } = await supabaseAdmin.from('drops').select('*').order('created_at', { ascending: false });
