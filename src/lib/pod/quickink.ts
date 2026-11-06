@@ -45,8 +45,8 @@ export class QuickinkClient {
   constructor() {
     const isSandbox = process.env.QUICKINK_ENV !== 'production';
     this.baseUrl = isSandbox
-      ? process.env.QUICKINK_BASE_URL || 'https://sandbox.qikink.com/api'
-      : 'https://api.qikink.com/api';
+      ? process.env.QUICKINK_BASE_URL || 'https://sandbox.qikink.com'
+      : 'https://api.qikink.com';
     this.clientId = process.env.QUICKINK_CLIENT_ID || '';
     this.clientSecret = process.env.QUICKINK_CLIENT_SECRET || '';
   }
@@ -64,11 +64,11 @@ export class QuickinkClient {
     }
 
     if (!this.clientId || !this.clientSecret) {
-      throw new Error('Quickink API credentials (QUICKINK_CLIENT_ID & QUICKINK_CLIENT_SECRET or QUICKINK_API_KEY) missing in environment variables.');
+      throw new Error('Quickink API credentials (QUICKINK_CLIENT_ID & QUICKINK_CLIENT_SECRET) missing.');
     }
 
     try {
-      const response = await fetch(`${this.baseUrl}/auth/token`, {
+      const response = await fetch(`${this.baseUrl}/api/v1/oauth/token`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -97,10 +97,15 @@ export class QuickinkClient {
    */
   async createOrder(params: QuickinkCreateOrderParams) {
     const token = await this.getAccessToken();
+    const isSandbox = process.env.QUICKINK_ENV !== 'production';
+
+    // Qikink expects order_number to be <= 15 chars
+    const sanitizedOrderNumber = (params.orderNumber || `CWC${Date.now().toString(36)}`).slice(0, 15);
 
     const payload = {
-      order_number: params.orderNumber,
-      payment_type: params.paymentType,
+      order_number: sanitizedOrderNumber,
+      search_from_my_products: isSandbox ? 0 : 1,
+      payment_type: params.paymentType.toLowerCase(),
       shipping_address: {
         first_name: params.shippingAddress.firstName,
         last_name: params.shippingAddress.lastName || '',
@@ -115,18 +120,18 @@ export class QuickinkClient {
       },
       line_items: params.items.map((item) => ({
         sku: item.sku,
-        quantity: item.quantity,
-        price: item.price || 0,
+        quantity: String(item.quantity),
+        price: String(item.price || 0),
         print_type: item.printType || 'DTG',
         design_front: item.frontPrintUrl || '',
         design_back: item.backPrintUrl || '',
         custom_neck_label: item.neckLabelUrl || '',
       })),
-      cod_amount: params.paymentType === 'COD' ? params.codAmount || 0 : 0,
+      cod_amount: params.paymentType === 'COD' ? String(params.codAmount || 0) : '0',
       packaging: params.customBoxPackaging ? 'cwc_custom_box' : 'standard',
     };
 
-    const res = await fetch(`${this.baseUrl}/orders`, {
+    const res = await fetch(`${this.baseUrl}/api/v1/orders`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -149,7 +154,7 @@ export class QuickinkClient {
   async getOrderStatus(orderNumberOrId: string) {
     const token = await this.getAccessToken();
 
-    const res = await fetch(`${this.baseUrl}/orders/${orderNumberOrId}`, {
+    const res = await fetch(`${this.baseUrl}/api/v1/orders/${orderNumberOrId}`, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${token}`,
